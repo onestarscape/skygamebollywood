@@ -80,7 +80,7 @@ export function buildShareText(state: GameState) {
   const result = state.won
     ? `Guessed the Mystery Movie in ${spelledOut(state.log.length)} turns.`
     : `Stumped after ${spelledOut(state.log.length)} turns.`;
-  return `🎬 BollyRiddle${number}\n\n${result}\n\nPlay today's puzzle: ${process.env.NEXT_PUBLIC_SITE_URL ?? ""}`;
+  return `🎬 Bollywood Riddle${number}\n\n${result}\n\nPlay today's puzzle: ${process.env.NEXT_PUBLIC_SITE_URL ?? ""}`;
 }
 
 const NUMBER_WORDS = ["ZERO", "ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN", "EIGHT", "NINE", "TEN"];

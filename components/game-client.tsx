@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { MovieSearch } from "@/components/movie-search";
-import { RevealBoards } from "@/components/reveal-boards";
+import { RevealBoards, type SlotPath } from "@/components/reveal-boards";
 import { GuessLog } from "@/components/guess-log";
-import { applyGuess } from "@/lib/compare";
+import { applyGuess, revealSlotWithLifeline } from "@/lib/compare";
 import { buildShareText, clueVisibility, createInitialState, isGameOver, MAX_GUESSES } from "@/lib/game";
 import { movieCardSvg } from "@/lib/movie-card";
 import type { GameMode, GameState, Movie } from "@/lib/types";
@@ -26,6 +26,8 @@ export function GameClient({ mode, puzzleKey, target: initialTarget }: Props) {
   const [state, setState] = useState<GameState>(() => createInitialState(mode, puzzleKey, initialTarget));
   const [showResult, setShowResult] = useState(false);
   const [noLimit, setNoLimit] = useState(false);
+  const [usedLifelines, setUsedLifelines] = useState<{ one: boolean; two: boolean }>({ one: false, two: false });
+  const [activeLifeline, setActiveLifeline] = useState<"one" | "two" | null>(null);
 
   const storageKey = `bollyriddle:${gameMode}:${key}`;
   const over = isGameOver(state, gameMode === "unlimited" && noLimit);
@@ -42,6 +44,8 @@ export function GameClient({ mode, puzzleKey, target: initialTarget }: Props) {
       }
     }
     setState(createInitialState(gameMode, key, target));
+    setUsedLifelines({ one: false, two: false });
+    setActiveLifeline(null);
   }, [storageKey, target, gameMode, key]);
 
   useEffect(() => {
@@ -69,6 +73,20 @@ export function GameClient({ mode, puzzleKey, target: initialTarget }: Props) {
     setState(solved || reachedLimit ? finish(next) : next);
   }
 
+  function activateLifeline(which: "one" | "two") {
+    if (usedLifelines[which]) return;
+    setActiveLifeline((current) => (current === which ? null : which));
+  }
+
+  function handleRevealSlot(path: SlotPath) {
+    if (!activeLifeline) return;
+    const nextBoard = revealSlotWithLifeline(state.board, target, path);
+    if (nextBoard === state.board) return; // no-op: slot wasn't actually revealable
+    setState((current) => ({ ...current, board: nextBoard }));
+    setUsedLifelines((current) => ({ ...current, [activeLifeline]: true }));
+    setActiveLifeline(null);
+  }
+
   async function startUnlimited() {
     const response = await fetch("/api/game/random", { cache: "no-store" });
     const data = await response.json();
@@ -85,6 +103,8 @@ export function GameClient({ mode, puzzleKey, target: initialTarget }: Props) {
     const next = createInitialState(gameMode, key, target);
     setState(next);
     setShowResult(false);
+    setUsedLifelines({ one: false, two: false });
+    setActiveLifeline(null);
     window.localStorage.setItem(storageKey, JSON.stringify(next));
   }
 
@@ -130,7 +150,12 @@ export function GameClient({ mode, puzzleKey, target: initialTarget }: Props) {
             No guess limit
           </label>
         )}
-        <RevealBoards board={state.board} maxGuesses={MAX_GUESSES} />
+        {activeLifeline && (
+          <div className="mb-3 rounded-md border border-amber-400/50 bg-amber-400/10 px-3 py-2 text-sm font-semibold text-amber-200">
+            Lifeline active — click any glowing empty slot to reveal it.
+          </div>
+        )}
+        <RevealBoards board={state.board} target={target} lifelineActive={Boolean(activeLifeline)} onRevealSlot={handleRevealSlot} />
       </section>
 
       <aside className="space-y-4">
@@ -152,8 +177,20 @@ export function GameClient({ mode, puzzleKey, target: initialTarget }: Props) {
             </h2>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
-            <Lifeline unlocked={lifelines.lifelineOne} locked="Unlock Lifeline after 4th guess" />
-            <Lifeline unlocked={lifelines.lifelineTwo} locked="Unlock Lifeline after 6th guess" />
+            <Lifeline
+              unlocked={lifelines.lifelineOne}
+              used={usedLifelines.one}
+              active={activeLifeline === "one"}
+              locked="Unlock Lifeline after 4th guess"
+              onActivate={() => activateLifeline("one")}
+            />
+            <Lifeline
+              unlocked={lifelines.lifelineTwo}
+              used={usedLifelines.two}
+              active={activeLifeline === "two"}
+              locked="Unlock Lifeline after 6th guess"
+              onActivate={() => activateLifeline("two")}
+            />
           </CardContent>
         </Card>
 
@@ -222,11 +259,43 @@ function finalizeBoard(board: GameState["board"], target: Movie) {
   };
 }
 
-function Lifeline({ unlocked, locked }: { unlocked: boolean; locked: string }) {
+function Lifeline({
+  unlocked,
+  used,
+  active,
+  locked,
+  onActivate
+}: {
+  unlocked: boolean;
+  used: boolean;
+  active: boolean;
+  locked: string;
+  onActivate: () => void;
+}) {
+  if (!unlocked) {
+    return (
+      <div className="flex items-center gap-2 rounded-md border border-white/10 bg-white/[0.03] px-3 py-2 text-zinc-500">
+        <Lock className="h-4 w-4" />
+        <span className="text-sm">{locked}</span>
+      </div>
+    );
+  }
+
   return (
-    <div className={`flex items-center gap-2 rounded-md border px-3 py-2 ${unlocked ? "border-amber-400/40 bg-amber-400/10" : "border-white/10 bg-white/[0.03] text-zinc-500"}`}>
-      {unlocked ? <Sparkles className="h-4 w-4 text-amber-300" /> : <Lock className="h-4 w-4" />}
-      <span className="text-sm">{unlocked ? "Lifeline available" : locked}</span>
-    </div>
+    <button
+      type="button"
+      disabled={used}
+      onClick={onActivate}
+      className={`flex w-full items-center gap-2 rounded-md border px-3 py-2 text-left text-sm transition ${
+        used
+          ? "cursor-default border-white/10 bg-white/[0.02] text-zinc-500"
+          : active
+            ? "border-amber-400 bg-amber-400/20 text-amber-100"
+            : "border-amber-400/40 bg-amber-400/10 text-amber-200 hover:bg-amber-400/20"
+      }`}
+    >
+      <Sparkles className="h-4 w-4" />
+      {used ? "Lifeline used" : active ? "Click a slot to reveal..." : "Use lifeline"}
+    </button>
   );
 }

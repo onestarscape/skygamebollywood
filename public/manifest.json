@@ -1,6 +1,6 @@
 {
-  "name": "MovieRiddl",
-  "short_name": "MovieRiddl",
+  "name": "Bollywood Riddle",
+  "short_name": "Bollywood Riddle",
   "description": "Guess the daily Bollywood movie.",
   "start_url": "/",
   "display": "standalone",

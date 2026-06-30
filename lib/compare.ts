@@ -95,3 +95,70 @@ function splitNames(value: string): string[] {
 export function isYearFullyRevealed(board: RevealBoard): boolean {
   return board.yearExact;
 }
+
+export type SlotPath =
+  | { kind: "genre"; index: number }
+  | { kind: "cast"; index: number }
+  | { kind: "director" }
+  | { kind: "productionHouse"; index: number }
+  | { kind: "musicDirector"; index: number }
+  | { kind: "writer" };
+
+/**
+ * Lifeline reveal: directly fills one specific empty slot with its true
+ * value from the target, bypassing the normal "must appear in a guess"
+ * rule. Used when the player spends a lifeline and clicks a specific slot.
+ * No-ops if the slot is already filled (lifelines should never overwrite).
+ */
+export function revealSlotWithLifeline(board: RevealBoard, target: Movie, path: SlotPath): RevealBoard {
+  const next: RevealBoard = {
+    ...board,
+    genres: [...board.genres],
+    cast: [...board.cast],
+    productionHouse: [...board.productionHouse],
+    musicDirector: [...board.musicDirector]
+  };
+
+  switch (path.kind) {
+    case "genre": {
+      if (next.genres[path.index]?.value) return board;
+      const value = target.genres[path.index];
+      if (!value) return board;
+      next.genres[path.index] = { value };
+      return next;
+    }
+    case "cast": {
+      if (next.cast[path.index]?.value) return board;
+      const value = target.cast[path.index];
+      if (!value) return board;
+      next.cast[path.index] = { value };
+      return next;
+    }
+    case "director": {
+      if (next.director.value) return board;
+      next.director = { value: target.director };
+      return next;
+    }
+    case "productionHouse": {
+      if (next.productionHouse[path.index]?.value) return board;
+      if (path.index === 0) {
+        next.productionHouse[0] = { value: target.productionHouse };
+        return next;
+      }
+      return board;
+    }
+    case "musicDirector": {
+      if (next.musicDirector[path.index]?.value) return board;
+      const names = splitNames(target.musicDirector);
+      const value = names[path.index];
+      if (!value) return board;
+      next.musicDirector[path.index] = { value };
+      return next;
+    }
+    case "writer": {
+      if (next.writer.value) return board;
+      next.writer = { value: target.writer };
+      return next;
+    }
+  }
+}

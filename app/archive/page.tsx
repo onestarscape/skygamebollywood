@@ -17,7 +17,7 @@ export default function ArchivePage() {
           </div>
           <div>
             <h1 className="text-2xl font-black">Archive</h1>
-            <p className="text-sm text-zinc-400">Play any previous daily MovieRiddl puzzle.</p>
+            <p className="text-sm text-zinc-400">Play any previous daily Bollywood Riddle puzzle.</p>
           </div>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row">

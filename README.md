@@ -1,4 +1,4 @@
-# MovieRiddl
+# Bollywood Riddle
 
 Production-ready Bollywood movie guessing game built with Next.js 15, TypeScript, Tailwind CSS, ShadCN UI, Supabase, PostgreSQL, and Vercel.
 

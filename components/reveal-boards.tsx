@@ -1,42 +1,109 @@
 "use client";
 
-import type { RevealBoard } from "@/lib/types";
+import type { Movie, RevealBoard } from "@/lib/types";
 
-export function RevealBoards({ board, maxGuesses }: { board: RevealBoard; maxGuesses: number }) {
+export type SlotPath =
+  | { kind: "genre"; index: number }
+  | { kind: "cast"; index: number }
+  | { kind: "director" }
+  | { kind: "productionHouse"; index: number }
+  | { kind: "musicDirector"; index: number }
+  | { kind: "writer" };
+
+type Props = {
+  board: RevealBoard;
+  target: Movie;
+  lifelineActive?: boolean;
+  onRevealSlot?: (path: SlotPath) => void;
+};
+
+export function RevealBoards({ board, target, lifelineActive = false, onRevealSlot }: Props) {
+  const musicDirectorNames = splitNames(target.musicDirector);
+
   return (
     <div className="space-y-4">
-      <Panel border="border-red-500/60">
+      <Panel border="border-red-500/60" glow={lifelineActive}>
         <SectionLabel>Year of Release</SectionLabel>
         <div className="mb-4 flex items-center justify-center gap-3">
-          <Pill tone="red">{board.yearExact ? board.yearLow : board.yearLow}</Pill>
+          <Pill tone="red">{board.yearLow}</Pill>
           <span className="text-zinc-400">↔</span>
-          <Pill tone="red">{board.yearExact ? board.yearLow : board.yearHigh}</Pill>
+          <Pill tone="red">{board.yearHigh}</Pill>
         </div>
         <SectionLabel>Genre</SectionLabel>
-        <SlotRow slots={board.genres} tone="red" />
+        <SlotRow
+          slots={board.genres}
+          tone="red"
+          revealable={target.genres.map((value) => Boolean(value))}
+          lifelineActive={lifelineActive}
+          onClick={(index) => onRevealSlot?.({ kind: "genre", index })}
+        />
       </Panel>
 
-      <Panel border="border-emerald-500/60">
+      <Panel border="border-emerald-500/60" glow={lifelineActive}>
         <SectionLabel>Cast</SectionLabel>
-        <SlotGrid slots={board.cast} tone="green" columns={3} />
+        <SlotGrid
+          slots={board.cast}
+          tone="green"
+          columns={3}
+          revealable={target.cast.map((value) => Boolean(value))}
+          lifelineActive={lifelineActive}
+          onClick={(index) => onRevealSlot?.({ kind: "cast", index })}
+        />
       </Panel>
 
-      <Panel border="border-blue-500/60">
+      <Panel border="border-blue-500/60" glow={lifelineActive}>
         <SectionLabel>Director</SectionLabel>
-        <SlotRow slots={[board.director]} tone="blue" />
+        <SlotRow
+          slots={[board.director]}
+          tone="blue"
+          revealable={[Boolean(target.director)]}
+          lifelineActive={lifelineActive}
+          onClick={() => onRevealSlot?.({ kind: "director" })}
+        />
         <SectionLabel>Production House</SectionLabel>
-        <SlotRow slots={board.productionHouse} tone="blue" />
+        <SlotRow
+          slots={board.productionHouse}
+          tone="blue"
+          revealable={board.productionHouse.map((_, index) => index === 0 && Boolean(target.productionHouse))}
+          lifelineActive={lifelineActive}
+          onClick={(index) => onRevealSlot?.({ kind: "productionHouse", index })}
+        />
         <SectionLabel>Music Director</SectionLabel>
-        <SlotGrid slots={board.musicDirector} tone="blue" columns={3} />
+        <SlotGrid
+          slots={board.musicDirector}
+          tone="blue"
+          columns={3}
+          revealable={board.musicDirector.map((_, index) => Boolean(musicDirectorNames[index]))}
+          lifelineActive={lifelineActive}
+          onClick={(index) => onRevealSlot?.({ kind: "musicDirector", index })}
+        />
         <SectionLabel>Writer</SectionLabel>
-        <SlotRow slots={[board.writer]} tone="blue" />
+        <SlotRow
+          slots={[board.writer]}
+          tone="blue"
+          revealable={[Boolean(target.writer)]}
+          lifelineActive={lifelineActive}
+          onClick={() => onRevealSlot?.({ kind: "writer" })}
+        />
       </Panel>
     </div>
   );
 }
 
-function Panel({ border, children }: { border: string; children: React.ReactNode }) {
-  return <div className={`rounded-lg border-2 ${border} bg-white/[0.03] p-4`}>{children}</div>;
+function splitNames(value: string): string[] {
+  if (!value) return [];
+  return value
+    .split(/[-,&/]| and /i)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+function Panel({ border, glow, children }: { border: string; glow?: boolean; children: React.ReactNode }) {
+  return (
+    <div className={`rounded-lg border-2 ${border} bg-white/[0.03] p-4 transition ${glow ? "shadow-[0_0_0_3px_rgba(251,191,36,0.25)]" : ""}`}>
+      {children}
+    </div>
+  );
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
@@ -59,36 +126,87 @@ function Pill({ tone, children }: { tone: keyof typeof toneClasses; children: Re
   );
 }
 
-function SlotRow({ slots, tone }: { slots: { value: string | null }[]; tone: keyof typeof toneClasses }) {
+function SlotRow({
+  slots,
+  tone,
+  revealable,
+  lifelineActive,
+  onClick
+}: {
+  slots: { value: string | null }[];
+  tone: keyof typeof toneClasses;
+  revealable: boolean[];
+  lifelineActive: boolean;
+  onClick: (index: number) => void;
+}) {
   return (
     <div className="mb-3 flex flex-wrap justify-center gap-2">
       {slots.map((slot, index) => (
-        <Slot key={index} value={slot.value} tone={tone} />
+        <Slot
+          key={index}
+          value={slot.value}
+          tone={tone}
+          clickable={lifelineActive && !slot.value && Boolean(revealable[index])}
+          onClick={() => onClick(index)}
+        />
       ))}
     </div>
   );
 }
 
-function SlotGrid({ slots, tone, columns }: { slots: { value: string | null }[]; tone: keyof typeof toneClasses; columns: number }) {
+function SlotGrid({
+  slots,
+  tone,
+  columns,
+  revealable,
+  lifelineActive,
+  onClick
+}: {
+  slots: { value: string | null }[];
+  tone: keyof typeof toneClasses;
+  columns: number;
+  revealable: boolean[];
+  lifelineActive: boolean;
+  onClick: (index: number) => void;
+}) {
   return (
-    <div className={`mb-3 grid gap-2`} style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
+    <div className="mb-3 grid gap-2" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
       {slots.map((slot, index) => (
-        <Slot key={index} value={slot.value} tone={tone} />
+        <Slot
+          key={index}
+          value={slot.value}
+          tone={tone}
+          clickable={lifelineActive && !slot.value && Boolean(revealable[index])}
+          onClick={() => onClick(index)}
+        />
       ))}
     </div>
   );
 }
 
-function Slot({ value, tone }: { value: string | null; tone: keyof typeof toneClasses }) {
+function Slot({
+  value,
+  tone,
+  clickable,
+  onClick
+}: {
+  value: string | null;
+  tone: keyof typeof toneClasses;
+  clickable: boolean;
+  onClick: () => void;
+}) {
   const classes = toneClasses[tone];
   return (
-    <span
-      className={`flex h-9 items-center justify-center rounded-full px-3 text-center text-xs font-semibold ${
+    <button
+      type="button"
+      disabled={!clickable}
+      onClick={clickable ? onClick : undefined}
+      className={`flex h-9 items-center justify-center rounded-full px-3 text-center text-xs font-semibold transition ${
         value ? classes.filled : classes.empty
-      }`}
-      title={value ?? "Not yet revealed"}
+      } ${clickable ? "animate-pulse cursor-pointer ring-2 ring-amber-300 ring-offset-2 ring-offset-black" : "cursor-default"}`}
+      title={value ?? (clickable ? "Click to reveal with lifeline" : "Not yet revealed")}
     >
       {value ?? "···"}
-    </span>
+    </button>
   );
 }
