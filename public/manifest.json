@@ -1,0 +1,10 @@
+{
+  "name": "MovieRiddl",
+  "short_name": "MovieRiddl",
+  "description": "Guess the daily Bollywood movie.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#080808",
+  "theme_color": "#dc2626",
+  "icons": []
+}
