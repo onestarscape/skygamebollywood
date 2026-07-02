@@ -140,7 +140,7 @@ function SlotRow({
   onClick: (index: number) => void;
 }) {
   return (
-    <div className="mb-3 flex flex-wrap justify-center gap-2">
+    <div className="mb-3 grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.max(slots.length, 1)}, minmax(0, 1fr))` }}>
       {slots.map((slot, index) => (
         <Slot
           key={index}
@@ -201,12 +201,12 @@ function Slot({
       type="button"
       disabled={!clickable}
       onClick={clickable ? onClick : undefined}
-      className={`flex h-9 items-center justify-center rounded-full px-3 text-center text-xs font-semibold transition ${
+      className={`flex h-11 w-full items-center justify-center rounded-lg px-3 text-center text-xs font-semibold leading-tight transition ${
         value ? classes.filled : classes.empty
       } ${clickable ? "animate-pulse cursor-pointer ring-2 ring-amber-300 ring-offset-2 ring-offset-black" : "cursor-default"}`}
       title={value ?? (clickable ? "Click to reveal with lifeline" : "Not yet revealed")}
     >
-      {value ?? "···"}
+      <span className="line-clamp-2">{value ?? "···"}</span>
     </button>
   );
 }

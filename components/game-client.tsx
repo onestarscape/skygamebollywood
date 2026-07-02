@@ -173,6 +173,34 @@ export function GameClient({ mode, puzzleKey, target: initialTarget }: Props) {
           <CardHeader className="pb-3">
             <h2 className="flex items-center gap-2 text-lg font-black">
               <Sparkles className="h-5 w-5 text-amber-300" />
+              Keyword Hint
+            </h2>
+          </CardHeader>
+          <CardContent>
+            <div className={`rounded-lg border px-4 py-3 text-sm font-semibold transition-all ${
+              lifelines.keyword
+                ? "border-amber-400/50 bg-amber-400/10 text-amber-100"
+                : "border-white/10 bg-white/[0.03] text-zinc-500"
+            }`}>
+              {lifelines.keyword ? (
+                <span className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-amber-300 shrink-0" />
+                  {target.keyword || "No keyword available"}
+                </span>
+              ) : (
+                <span className="flex items-center gap-2">
+                  <Lock className="h-4 w-4 shrink-0" />
+                  Reveals after 5th guess ({Math.max(0, 5 - state.log.length)} guesses left)
+                </span>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <h2 className="flex items-center gap-2 text-lg font-black">
+              <Sparkles className="h-5 w-5 text-amber-300" />
               Lifelines
             </h2>
           </CardHeader>

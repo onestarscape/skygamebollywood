@@ -25,6 +25,7 @@ export function getRandomMovie(seed = cryptoRandom()) {
 
 export function clueVisibility(guessCount: number) {
   return {
+    keyword: guessCount >= 5,
     lifelineOne: guessCount >= 4,
     lifelineTwo: guessCount >= 6
   };
