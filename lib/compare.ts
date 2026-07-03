@@ -57,7 +57,9 @@ function fillSlot(slot: RevealSlot, guessValue: string, targetValue: string): Re
 
 // Multi-slot fields (genres, cast, music director, production house): any
 // value in the guess's list that also appears in the target's list gets
-// placed into the next available empty slot, permanently.
+// placed into its EXACT position in the target's ordering — not just any
+// available empty slot. This is critical for cast: Vidya Balan as cast_6
+// in the target should reveal in slot 6, not slot 1.
 function fillSlots(slots: RevealSlot[], guessValues: string[], targetValues: string[]): RevealSlot[] {
   const targetNormalized = targetValues.map(normalizeName);
   const alreadyRevealed = new Set(slots.filter((slot) => slot.value).map((slot) => normalizeName(slot.value as string)));
@@ -71,10 +73,14 @@ function fillSlots(slots: RevealSlot[], guessValues: string[], targetValues: str
 
     const targetIndex = targetNormalized.indexOf(normalized);
     const actualValue = targetValues[targetIndex];
-    const emptyIndex = next.findIndex((slot) => !slot.value);
-    if (emptyIndex === -1) continue;
 
-    next[emptyIndex] = { value: actualValue };
+    // Place value at its exact target position (not just any empty slot).
+    // If that slot is already filled (e.g. previously revealed by lifeline),
+    // skip rather than overwrite.
+    if (targetIndex >= next.length) continue;
+    if (next[targetIndex]?.value) continue;
+
+    next[targetIndex] = { value: actualValue };
     alreadyRevealed.add(normalized);
   }
 

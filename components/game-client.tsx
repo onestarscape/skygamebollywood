@@ -10,7 +10,6 @@ import { RevealBoards, type SlotPath } from "@/components/reveal-boards";
 import { GuessLog } from "@/components/guess-log";
 import { applyGuess, revealSlotWithLifeline } from "@/lib/compare";
 import { buildShareText, clueVisibility, createInitialState, isGameOver, MAX_GUESSES } from "@/lib/game";
-import { movieCardSvg } from "@/lib/movie-card";
 import type { GameMode, GameState, Movie } from "@/lib/types";
 
 type Props = {
@@ -228,28 +227,33 @@ export function GameClient({ mode, puzzleKey, target: initialTarget }: Props) {
       <Dialog open={showResult} onOpenChange={setShowResult}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              {state.won ? <Trophy className="h-5 w-5 text-amber-400" /> : <Clapperboard className="h-5 w-5 text-zinc-400" />}
-              {state.won ? "Congratulations!" : "Out of Guesses"}
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              {state.won ? <Trophy className="h-6 w-6 text-amber-400" /> : <Clapperboard className="h-6 w-6 text-zinc-400" />}
+              {state.won ? "Solved!" : "Out of Guesses"}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="overflow-hidden rounded-lg border border-white/10 bg-white/[0.04]">
-              <div
-                className="relative aspect-[3/2] bg-zinc-950"
-                dangerouslySetInnerHTML={{ __html: movieCardSvg(target, { revealed: true, title: target.title }) }}
-              />
-              <div className="p-4">
-                <p className="text-sm text-zinc-300">
-                  {state.won
-                    ? `You correctly guessed the Mystery Movie in ${state.log.length} ${state.log.length === 1 ? "turn" : "turns"}.`
-                    : "Better luck next time — here's the movie you were after."}
-                </p>
-                <div className="mt-2 text-3xl font-black uppercase tracking-tight">{target.title}</div>
-                <div className="mt-1 text-sm text-zinc-300">{target.year} · Dir. {target.director}</div>
-                <div className="mt-1 text-sm text-zinc-400">{target.cast.slice(0, 3).join(", ")}</div>
+          <div className="space-y-3">
+            {/* Compact movie reveal card */}
+            <div className="rounded-lg border border-white/10 bg-white/[0.04] p-4">
+              <div className="mb-1 text-xs font-bold uppercase tracking-wide text-zinc-500">
+                {state.won
+                  ? `Guessed in ${state.log.length} ${state.log.length === 1 ? "turn" : "turns"}`
+                  : "The answer was"}
+              </div>
+              <div className="text-2xl font-black uppercase tracking-tight leading-tight">{target.title}</div>
+              <div className="mt-1 text-sm text-zinc-300">{target.year} · {target.genres.slice(0, 2).join(" / ")}</div>
+              <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-zinc-400">
+                <div><span className="text-zinc-500">Director</span><br /><span className="text-zinc-200 font-semibold">{target.director}</span></div>
+                <div><span className="text-zinc-500">Music</span><br /><span className="text-zinc-200 font-semibold">{target.musicDirector}</span></div>
+                <div><span className="text-zinc-500">Production</span><br /><span className="text-zinc-200 font-semibold">{target.productionHouse}</span></div>
+                <div><span className="text-zinc-500">Keyword</span><br /><span className="text-zinc-200 font-semibold">{target.keyword || "—"}</span></div>
+              </div>
+              <div className="mt-3 border-t border-white/10 pt-3 text-xs text-zinc-400">
+                <span className="text-zinc-500">Cast · </span>
+                {target.cast.filter(Boolean).join(", ")}
               </div>
             </div>
+            {/* Action buttons */}
             <div className="grid grid-cols-3 gap-2">
               <Button variant="outline" onClick={resetCurrent}>Try Again</Button>
               <Button onClick={startUnlimited}>New Movie</Button>
