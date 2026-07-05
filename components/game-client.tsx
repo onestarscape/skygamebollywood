@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Calendar, Clapperboard, Infinity, Lock, RotateCcw, Share2, Sparkles, Trophy } from "lucide-react";
+import { Calendar, Infinity, Lock, RotateCcw, Share2, Sparkles, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { MovieSearch } from "@/components/movie-search";
 import { RevealBoards, type SlotPath } from "@/components/reveal-boards";
 import { GuessLog } from "@/components/guess-log";
+import { WinScreen } from "@/components/win-screen";
 import { applyGuess, revealSlotWithLifeline } from "@/lib/compare";
 import { buildShareText, clueVisibility, createInitialState, isGameOver, MAX_GUESSES } from "@/lib/game";
 import type { GameMode, GameState, Movie } from "@/lib/types";
@@ -224,47 +224,14 @@ export function GameClient({ mode, puzzleKey, target: initialTarget }: Props) {
         <MovieSearch disabled={over} onSelect={guessMovie} />
       </aside>
 
-      <Dialog open={showResult} onOpenChange={setShowResult}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-xl">
-              {state.won ? <Trophy className="h-6 w-6 text-amber-400" /> : <Clapperboard className="h-6 w-6 text-zinc-400" />}
-              {state.won ? "Solved!" : "Out of Guesses"}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            {/* Compact movie reveal card */}
-            <div className="rounded-lg border border-white/10 bg-white/[0.04] p-4">
-              <div className="mb-1 text-xs font-bold uppercase tracking-wide text-zinc-500">
-                {state.won
-                  ? `Guessed in ${state.log.length} ${state.log.length === 1 ? "turn" : "turns"}`
-                  : "The answer was"}
-              </div>
-              <div className="text-2xl font-black uppercase tracking-tight leading-tight">{target.title}</div>
-              <div className="mt-1 text-sm text-zinc-300">{target.year} · {target.genres.slice(0, 2).join(" / ")}</div>
-              <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-zinc-400">
-                <div><span className="text-zinc-500">Director</span><br /><span className="text-zinc-200 font-semibold">{target.director}</span></div>
-                <div><span className="text-zinc-500">Music</span><br /><span className="text-zinc-200 font-semibold">{target.musicDirector}</span></div>
-                <div><span className="text-zinc-500">Production</span><br /><span className="text-zinc-200 font-semibold">{target.productionHouse}</span></div>
-                <div><span className="text-zinc-500">Keyword</span><br /><span className="text-zinc-200 font-semibold">{target.keyword || "—"}</span></div>
-              </div>
-              <div className="mt-3 border-t border-white/10 pt-3 text-xs text-zinc-400">
-                <span className="text-zinc-500">Cast · </span>
-                {target.cast.filter(Boolean).join(", ")}
-              </div>
-            </div>
-            {/* Action buttons */}
-            <div className="grid grid-cols-3 gap-2">
-              <Button variant="outline" onClick={resetCurrent}>Try Again</Button>
-              <Button onClick={startUnlimited}>New Movie</Button>
-              <Button variant="secondary" onClick={share}>
-                <Share2 className="h-4 w-4" />
-                Share
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <WinScreen
+        open={showResult}
+        state={state}
+        target={target}
+        onTryAgain={resetCurrent}
+        onNewMovie={startUnlimited}
+        onShare={share}
+      />
     </div>
   );
 }

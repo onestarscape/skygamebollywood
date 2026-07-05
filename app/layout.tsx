@@ -34,6 +34,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <span className="text-lg">Bollywood Riddle</span>
               </Link>
               <div className="flex items-center gap-2">
+                <Link href="/room" className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-black uppercase tracking-wide text-zinc-300 hover:bg-white/10 transition">
+                  Group
+                </Link>
                 <Link href="/archive" className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-black uppercase tracking-wide text-zinc-300 hover:bg-white/10 transition">
                   Archive
                 </Link>
