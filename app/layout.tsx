@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
-import Image from "next/image";
-import Link from "next/link";
 import "./globals.css";
+import { SiteHeader } from "@/components/site-header";
 
 export const metadata: Metadata = {
   title: "Bollywood Riddle",
@@ -27,25 +26,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className="dark">
       <body>
         <div className="min-h-screen">
-          <header className="sticky top-0 z-40 border-b border-white/10 bg-black/50 backdrop-blur-xl">
-            <nav className="container flex h-16 items-center justify-between gap-3">
-              <Link href="/" className="flex items-center gap-2 font-black tracking-wide text-white">
-                <Image src="/starscape-logo.png" alt="Starscape" width={56} height={38} className="h-11 w-auto" priority />
-                <span className="text-lg">Bollywood Riddle</span>
-              </Link>
-              <div className="flex items-center gap-2">
-                <Link href="/room" className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-black uppercase tracking-wide text-zinc-300 hover:bg-white/10 transition">
-                  Group
-                </Link>
-                <Link href="/archive" className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-black uppercase tracking-wide text-zinc-300 hover:bg-white/10 transition">
-                  Archive
-                </Link>
-                <div className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-black uppercase tracking-wide text-zinc-300">
-                  Playable beta
-                </div>
-              </div>
-            </nav>
-          </header>
+          <SiteHeader />
           {children}
         </div>
       </body>
