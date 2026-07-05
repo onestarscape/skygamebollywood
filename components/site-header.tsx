@@ -9,6 +9,7 @@ import { createClient } from "@supabase/supabase-js";
 import { AuthModal } from "@/components/auth-modal";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { migrateLocalProgressToAccount } from "@/lib/use-game-progress";
 
 function getSupabase() {
   return createClient(
@@ -45,6 +46,8 @@ export function SiteHeader() {
           email: session.user.email,
           name: session.user.user_metadata?.full_name ?? session.user.email?.split("@")[0]
         });
+        // Push any in-progress localStorage games to their account
+        migrateLocalProgressToAccount();
       } else {
         setUser(null);
       }

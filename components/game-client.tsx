@@ -10,6 +10,7 @@ import { GuessLog } from "@/components/guess-log";
 import { WinScreen } from "@/components/win-screen";
 import { applyGuess, revealSlotWithLifeline } from "@/lib/compare";
 import { buildShareText, clueVisibility, createInitialState, isGameOver, MAX_GUESSES } from "@/lib/game";
+import { loadProgress, saveProgress } from "@/lib/use-game-progress";
 import type { GameMode, GameState, Movie } from "@/lib/types";
 
 type Props = {
@@ -28,28 +29,32 @@ export function GameClient({ mode, puzzleKey, target: initialTarget }: Props) {
   const [usedLifelines, setUsedLifelines] = useState<{ one: boolean; two: boolean }>({ one: false, two: false });
   const [activeLifeline, setActiveLifeline] = useState<"one" | "two" | null>(null);
 
-  const storageKey = `bollyriddle:${gameMode}:${key}`;
   const over = isGameOver(state, gameMode === "unlimited" && noLimit);
   const lifelines = clueVisibility(state.log.length);
 
+  // Load: signed-in users get Supabase state, guests get localStorage
   useEffect(() => {
-    const saved = window.localStorage.getItem(storageKey);
-    if (saved) {
-      const parsed = JSON.parse(saved) as GameState;
-      if (parsed.targetId === target.id) {
-        setState(parsed);
-        if (parsed.finishedAt) setShowResult(true);
-        return;
+    let cancelled = false;
+    async function load() {
+      const saved = await loadProgress(gameMode, key, target.id);
+      if (cancelled) return;
+      if (saved) {
+        setState(saved);
+        if (saved.finishedAt) setShowResult(true);
+      } else {
+        setState(createInitialState(gameMode, key, target));
+        setUsedLifelines({ one: false, two: false });
+        setActiveLifeline(null);
       }
     }
-    setState(createInitialState(gameMode, key, target));
-    setUsedLifelines({ one: false, two: false });
-    setActiveLifeline(null);
-  }, [storageKey, target, gameMode, key]);
+    load();
+    return () => { cancelled = true; };
+  }, [gameMode, key, target.id]);
 
+  // Save: always localStorage + Supabase when signed in
   useEffect(() => {
-    window.localStorage.setItem(storageKey, JSON.stringify(state));
-  }, [state, storageKey]);
+    saveProgress(state);
+  }, [state]);
 
   function finish(next: GameState) {
     setShowResult(true);
@@ -104,7 +109,7 @@ export function GameClient({ mode, puzzleKey, target: initialTarget }: Props) {
     setShowResult(false);
     setUsedLifelines({ one: false, two: false });
     setActiveLifeline(null);
-    window.localStorage.setItem(storageKey, JSON.stringify(next));
+    saveProgress(next);
   }
 
   async function share() {
