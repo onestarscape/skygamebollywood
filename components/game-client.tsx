@@ -32,9 +32,12 @@ export function GameClient({ mode, puzzleKey, target: initialTarget }: Props) {
   const over = isGameOver(state, gameMode === "unlimited" && noLimit);
   const lifelines = clueVisibility(state.log.length);
 
+  const [loaded, setLoaded] = useState(false);
+
   // Load: signed-in users get Supabase state, guests get localStorage
   useEffect(() => {
     let cancelled = false;
+    setLoaded(false);
     async function load() {
       const saved = await loadProgress(gameMode, key, target.id);
       if (cancelled) return;
@@ -45,16 +48,22 @@ export function GameClient({ mode, puzzleKey, target: initialTarget }: Props) {
         setState(createInitialState(gameMode, key, target));
         setUsedLifelines({ one: false, two: false });
         setActiveLifeline(null);
+        setShowResult(false);
       }
+      setLoaded(true);
     }
     load();
     return () => { cancelled = true; };
+  // target.id is stable (string), target object reference may change — use id only
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameMode, key, target.id]);
 
-  // Save: always localStorage + Supabase when signed in
+  // Save: only after initial load to avoid overwriting with empty state on mount
   useEffect(() => {
+    if (!loaded) return;
     saveProgress(state);
-  }, [state]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state, loaded]);
 
   function finish(next: GameState) {
     setShowResult(true);

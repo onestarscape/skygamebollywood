@@ -9,7 +9,7 @@ import { createClient } from "@supabase/supabase-js";
 import { AuthModal } from "@/components/auth-modal";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { migrateLocalProgressToAccount } from "@/lib/use-game-progress";
+import { migrateLocalProgressToAccount, invalidateAuthCache } from "@/lib/use-game-progress";
 
 function getSupabase() {
   return createClient(
@@ -91,6 +91,7 @@ export function SiteHeader() {
   async function signOut() {
     const supabase = getSupabase();
     await supabase.auth.signOut();
+    invalidateAuthCache();
     setUser(null);
   }
 
