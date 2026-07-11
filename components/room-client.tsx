@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
+import { getSupabaseBrowser } from "@/lib/supabase-client";
 import { Copy, CheckCheck, Trophy, Clock, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -30,12 +30,6 @@ type RoomData = {
   movies: Movie;
 };
 
-function getSupabase() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
-}
 
 export function RoomClient({ code }: { code: string }) {
   const [step, setStep] = useState<"join" | "playing" | "done">("join");
@@ -50,7 +44,7 @@ export function RoomClient({ code }: { code: string }) {
   const [joining, setJoining] = useState(false);
   const [usedLifelines, setUsedLifelines] = useState({ one: false, two: false });
   const [activeLifeline, setActiveLifeline] = useState<"one" | "two" | null>(null);
-  const supabaseRef = useRef(getSupabase());
+  const supabaseRef = useRef(getSupabaseBrowser());
 
   // Subscribe to live player updates via Supabase Realtime
   useEffect(() => {

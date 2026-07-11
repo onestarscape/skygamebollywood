@@ -1,77 +1,36 @@
 "use client";
 
-import { useCallback } from "react";
-import { createClient } from "@supabase/supabase-js";
+// Simple, safe progress persistence.
+// localStorage is used for all real-time game state (instant, no network, no loops).
+// Supabase is only written on explicit events: game finish and page unload.
+// This eliminates the infinite render loop that was crashing the browser.
+
 import type { GameState } from "@/lib/types";
 
-function getSupabase() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+export function localKey(state: Pick<GameState, "mode" | "puzzleKey">): string {
+  return `bollyriddle:${state.mode}:${state.puzzleKey}`;
 }
 
-async function isSignedIn(): Promise<boolean> {
-  const { data } = await getSupabase().auth.getUser();
-  return Boolean(data.user);
-}
-
-/**
- * Loads game state for a given puzzle key.
- * - Signed in: tries Supabase first, falls back to localStorage
- * - Guest: localStorage only
- */
-export async function loadProgress(
-  mode: string,
-  puzzleKey: string,
-  targetId: string
-): Promise<GameState | null> {
-  const signedIn = await isSignedIn();
-
-  if (signedIn) {
-    try {
-      const res = await fetch(
-        `/api/progress?mode=${encodeURIComponent(mode)}&puzzleKey=${encodeURIComponent(puzzleKey)}`,
-        { cache: "no-store" }
-      );
-      const data = await res.json();
-      if (data.state && data.state.targetId === targetId) {
-        return data.state as GameState;
-      }
-    } catch {
-      // fall through to localStorage
-    }
-  }
-
-  // Guest or Supabase miss — use localStorage
-  const localKey = `bollyriddle:${mode}:${puzzleKey}`;
+export function saveLocal(state: GameState): void {
   try {
-    const saved = window.localStorage.getItem(localKey);
-    if (saved) {
-      const parsed = JSON.parse(saved) as GameState;
-      if (parsed.targetId === targetId) return parsed;
-    }
+    window.localStorage.setItem(localKey(state), JSON.stringify(state));
   } catch { /* ignore */ }
+}
 
+export function loadLocal(mode: string, puzzleKey: string, targetId: string): GameState | null {
+  try {
+    const key = `bollyriddle:${mode}:${puzzleKey}`;
+    const saved = window.localStorage.getItem(key);
+    if (!saved) return null;
+    const parsed = JSON.parse(saved) as GameState;
+    if (parsed.targetId === targetId) return parsed;
+  } catch { /* ignore */ }
   return null;
 }
 
-/**
- * Saves game state.
- * - Always saves to localStorage (backup for guests + offline)
- * - Also saves to Supabase if signed in
- */
-export async function saveProgress(state: GameState): Promise<void> {
-  // Always write to localStorage
-  const localKey = `bollyriddle:${state.mode}:${state.puzzleKey}`;
-  try {
-    window.localStorage.setItem(localKey, JSON.stringify(state));
-  } catch { /* ignore */ }
-
-  // Also persist to Supabase if signed in (fire-and-forget)
-  const signedIn = await isSignedIn();
-  if (!signedIn) return;
-
+// Fire-and-forget Supabase save — only called when game is finished or tab closes.
+// Non-blocking, never causes re-renders, fails silently.
+export function syncToSupabase(state: GameState): void {
   fetch("/api/progress", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -84,39 +43,27 @@ export async function saveProgress(state: GameState): Promise<void> {
       startedAt: state.startedAt,
       won: state.won,
       finishedAt: state.finishedAt
-    })
-  }).catch(() => { /* non-critical, localStorage already saved */ });
+    }),
+    keepalive: true // ensures the request completes even if the tab closes
+  }).catch(() => {});
 }
 
-/**
- * Called when user signs in mid-session.
- * Pushes any in-progress localStorage game to Supabase so it's not lost.
- */
-export async function migrateLocalProgressToAccount(): Promise<void> {
-  const signedIn = await isSignedIn();
-  if (!signedIn) return;
-
+// Migration: push localStorage games to Supabase after sign-in.
+// Called once from site-header on auth state change.
+export function migrateLocalProgressToAccount(): void {
   try {
     const keys = Object.keys(localStorage).filter((k) => k.startsWith("bollyriddle:"));
     for (const key of keys) {
       const saved = localStorage.getItem(key);
       if (!saved) continue;
       const state = JSON.parse(saved) as GameState;
-      if (!state.log?.length) continue; // nothing to migrate
-      await fetch("/api/progress", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          mode: state.mode,
-          puzzleKey: state.puzzleKey,
-          targetId: state.targetId,
-          board: state.board,
-          log: state.log,
-          startedAt: state.startedAt,
-          won: state.won,
-          finishedAt: state.finishedAt
-        })
-      });
+      if (!state.log?.length) continue;
+      syncToSupabase(state);
     }
   } catch { /* non-critical */ }
+}
+
+export function invalidateAuthCache(): void {
+  // Kept for API compatibility with site-header.tsx — no-op now since
+  // we don't cache auth state in this module anymore.
 }

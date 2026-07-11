@@ -1,9 +1,6 @@
 import { normalizeName } from "@/lib/utils";
 import type { Movie, RevealBoard, RevealSlot } from "@/lib/types";
 
-// Builds the starting (fully empty/locked) reveal board for a fresh game.
-// Year starts at the widest possible range across the whole dataset so the
-// first guess has something real to narrow against.
 export function createEmptyBoard(yearMin: number, yearMax: number): RevealBoard {
   return {
     yearLow: yearMin,
@@ -18,88 +15,58 @@ export function createEmptyBoard(yearMin: number, yearMax: number): RevealBoard 
   };
 }
 
-function emptySlot(): RevealSlot {
-  return { value: null };
-}
-
+function emptySlot(): RevealSlot { return { value: null }; }
 function emptySlots(count: number): RevealSlot[] {
   return Array.from({ length: count }, emptySlot);
 }
 
-/**
- * Applies one guess against the target, returning a NEW board with any
- * newly-discovered values filled in. Slots that were already revealed are
- * left untouched (reveals are permanent and accumulate across guesses).
- */
 export function applyGuess(board: RevealBoard, guess: Movie, target: Movie): RevealBoard {
   const solved = guess.id === target.id;
-
   return {
-    yearLow: solved || guess.year === target.year ? target.year : guess.year < target.year ? Math.max(board.yearLow, guess.year) : board.yearLow,
-    yearHigh: solved || guess.year === target.year ? target.year : guess.year > target.year ? Math.min(board.yearHigh, guess.year) : board.yearHigh,
+    yearLow: solved || guess.year === target.year ? target.year
+      : guess.year < target.year ? Math.max(board.yearLow, guess.year) : board.yearLow,
+    yearHigh: solved || guess.year === target.year ? target.year
+      : guess.year > target.year ? Math.min(board.yearHigh, guess.year) : board.yearHigh,
     yearExact: board.yearExact || guess.year === target.year,
     genres: fillSlots(board.genres, guess.genres, target.genres),
     cast: fillSlots(board.cast, guess.cast, target.cast),
     director: fillSlot(board.director, guess.director, target.director),
-    productionHouse: fillSlots(board.productionHouse, [guess.productionHouse], target.productionHouse ? [target.productionHouse] : []),
+    productionHouse: fillSlots(board.productionHouse, [guess.productionHouse], [target.productionHouse]),
     musicDirector: fillSlots(board.musicDirector, splitNames(guess.musicDirector), splitNames(target.musicDirector)),
     writer: fillSlot(board.writer, guess.writer, target.writer)
   };
 }
 
-// Single-value fields (director, writer): if the guess matches the target
-// exactly, that single slot fills in. Already-filled slots are untouched.
 function fillSlot(slot: RevealSlot, guessValue: string, targetValue: string): RevealSlot {
   if (slot.value) return slot;
   if (!guessValue || !targetValue) return slot;
   return normalizeName(guessValue) === normalizeName(targetValue) ? { value: targetValue } : slot;
 }
 
-// Multi-slot fields (genres, cast, music director, production house): any
-// value in the guess's list that also appears in the target's list gets
-// placed into its EXACT position in the target's ordering — not just any
-// available empty slot. This is critical for cast: Vidya Balan as cast_6
-// in the target should reveal in slot 6, not slot 1.
 function fillSlots(slots: RevealSlot[], guessValues: string[], targetValues: string[]): RevealSlot[] {
   const targetNormalized = targetValues.map(normalizeName);
-  const alreadyRevealed = new Set(slots.filter((slot) => slot.value).map((slot) => normalizeName(slot.value as string)));
-  const next = slots.map((slot) => ({ ...slot }));
-
+  const alreadyRevealed = new Set(
+    slots.filter((s) => s.value).map((s) => normalizeName(s.value as string))
+  );
+  const next = slots.map((s) => ({ ...s }));
   for (const guessValue of guessValues) {
     if (!guessValue) continue;
     const normalized = normalizeName(guessValue);
     if (!targetNormalized.includes(normalized)) continue;
     if (alreadyRevealed.has(normalized)) continue;
-
     const targetIndex = targetNormalized.indexOf(normalized);
     const actualValue = targetValues[targetIndex];
-
-    // Place value at its exact target position (not just any empty slot).
-    // If that slot is already filled (e.g. previously revealed by lifeline),
-    // skip rather than overwrite.
     if (targetIndex >= next.length) continue;
     if (next[targetIndex]?.value) continue;
-
     next[targetIndex] = { value: actualValue };
     alreadyRevealed.add(normalized);
   }
-
   return next;
 }
 
-// Some music-director credits are written as "Shankar-Ehsaan-Loy" or
-// "Ajay-Atul" -- split on common separators so each composer gets their own
-// slot, matching how the reference game reveals individual composer names.
-function splitNames(value: string): string[] {
+export function splitNames(value: string): string[] {
   if (!value) return [];
-  return value
-    .split(/[-,&/]| and /i)
-    .map((part) => part.trim())
-    .filter(Boolean);
-}
-
-export function isYearFullyRevealed(board: RevealBoard): boolean {
-  return board.yearExact;
+  return value.split(/[-,&/]| and /i).map((p) => p.trim()).filter(Boolean);
 }
 
 export type SlotPath =
@@ -110,12 +77,6 @@ export type SlotPath =
   | { kind: "musicDirector"; index: number }
   | { kind: "writer" };
 
-/**
- * Lifeline reveal: directly fills one specific empty slot with its true
- * value from the target, bypassing the normal "must appear in a guess"
- * rule. Used when the player spends a lifeline and clicks a specific slot.
- * No-ops if the slot is already filled (lifelines should never overwrite).
- */
 export function revealSlotWithLifeline(board: RevealBoard, target: Movie, path: SlotPath): RevealBoard {
   const next: RevealBoard = {
     ...board,
@@ -124,7 +85,6 @@ export function revealSlotWithLifeline(board: RevealBoard, target: Movie, path: 
     productionHouse: [...board.productionHouse],
     musicDirector: [...board.musicDirector]
   };
-
   switch (path.kind) {
     case "genre": {
       if (next.genres[path.index]?.value) return board;
@@ -147,10 +107,7 @@ export function revealSlotWithLifeline(board: RevealBoard, target: Movie, path: 
     }
     case "productionHouse": {
       if (next.productionHouse[path.index]?.value) return board;
-      if (path.index === 0) {
-        next.productionHouse[0] = { value: target.productionHouse };
-        return next;
-      }
+      if (path.index === 0) { next.productionHouse[0] = { value: target.productionHouse }; return next; }
       return board;
     }
     case "musicDirector": {

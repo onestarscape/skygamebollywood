@@ -1,10 +1,15 @@
-"use client";
+// Single shared Supabase client for the browser.
+// Creating multiple clients causes auth listener duplication and memory leaks.
+import { createClient } from "@supabase/supabase-js";
 
-import { createBrowserClient } from "@supabase/ssr";
+let _client: ReturnType<typeof createClient> | null = null;
 
-export function createClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) return null;
-  return createBrowserClient(url, key);
+export function getSupabaseBrowser() {
+  if (!_client) {
+    _client = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+  }
+  return _client;
 }

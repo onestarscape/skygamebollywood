@@ -10,7 +10,7 @@ import { GuessLog } from "@/components/guess-log";
 import { WinScreen } from "@/components/win-screen";
 import { applyGuess, revealSlotWithLifeline } from "@/lib/compare";
 import { buildShareText, clueVisibility, createInitialState, isGameOver, MAX_GUESSES } from "@/lib/game";
-import { loadProgress, saveProgress } from "@/lib/use-game-progress";
+import { loadLocal, saveLocal, syncToSupabase } from "@/lib/use-game-progress";
 import type { GameMode, GameState, Movie } from "@/lib/types";
 
 type Props = {
@@ -32,33 +32,34 @@ export function GameClient({ mode, puzzleKey, target: initialTarget }: Props) {
   const over = isGameOver(state, gameMode === "unlimited" && noLimit);
   const lifelines = clueVisibility(state.log.length);
 
-  // Load: signed-in users get Supabase state, guests get localStorage
+  // Load from localStorage on mount and when puzzle changes.
+  // Synchronous — no network, no async, no possible loop.
   useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      const saved = await loadProgress(gameMode, key, target.id);
-      if (cancelled) return;
-      if (saved) {
-        setState(saved);
-        if (saved.finishedAt) setShowResult(true);
-      } else {
-        setState(createInitialState(gameMode, key, target));
-        setUsedLifelines({ one: false, two: false });
-        setActiveLifeline(null);
-      }
+    const saved = loadLocal(gameMode, key, target.id);
+    if (saved) {
+      setState(saved);
+      if (saved.finishedAt) setShowResult(true);
+    } else {
+      setState(createInitialState(gameMode, key, target));
+      setUsedLifelines({ one: false, two: false });
+      setActiveLifeline(null);
+      setShowResult(false);
     }
-    load();
-    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameMode, key, target.id]);
 
-  // Save: always localStorage + Supabase when signed in
+  // Save to localStorage on every state change.
+  // saveLocal never calls setState — this effect can never loop.
   useEffect(() => {
-    saveProgress(state);
+    saveLocal(state);
   }, [state]);
 
   function finish(next: GameState) {
+    const finished = { ...next, finishedAt: new Date().toISOString() };
     setShowResult(true);
-    return { ...next, finishedAt: new Date().toISOString() };
+    // Sync to Supabase only when the game is done — once, not on every guess
+    syncToSupabase(finished);
+    return finished;
   }
 
   function guessMovie(movie: Movie) {
@@ -109,7 +110,7 @@ export function GameClient({ mode, puzzleKey, target: initialTarget }: Props) {
     setShowResult(false);
     setUsedLifelines({ one: false, two: false });
     setActiveLifeline(null);
-    saveProgress(next);
+    saveLocal(next);
   }
 
   async function share() {
